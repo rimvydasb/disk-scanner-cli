@@ -1,49 +1,51 @@
 package org.rbutils.diskscanner;
 
-import org.rbutils.diskscanner.model.ExtensionInfo;
+import com.google.common.base.Stopwatch;
 import org.rbutils.diskscanner.model.ScannedFile;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-public class App {
-    public static void main(String[] args) throws IOException {
-        Path startPath = Paths.get("D:/Photos/");
+@Command(name = "diskscanner", mixinStandardHelpOptions = true, version = "1.0", description = "Scans disk and provides information.")
+public class App implements Callable<Integer> {
+    @CommandLine.Option(names = {"-scanPath"}, description = "The start path for scanning.")
+    private Path scanPath;
 
-        String databaseName = startPath.toString().replaceAll("[^a-zA-Z0-9]", "");
+    private static final Logger logger = Logger.getLogger(App.class.getName());
 
-        long startTime = System.currentTimeMillis();
+    public static void main(String[] args) {
+        int exitCode = new CommandLine(new App()).execute(args);
+        System.exit(exitCode);
+    }
 
-        var treeWalker = new TreeWalker(startPath);
+    @Override
+    public Integer call() throws IOException {
+        String databaseName = scanPath.toString().replaceAll("[^a-zA-Z0-9]", "");
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+
+        var treeWalker = new TreeWalker(scanPath);
 
         List<ScannedFile> scannedFiles = treeWalker.walkTree();
 
-        long endTime = System.currentTimeMillis();
-
-        scannedFiles.forEach(System.out::println);
+        scannedFiles.forEach(file -> logger.log(Level.INFO, file.toString()));
 
         var databaseSaver = new DatabaseSaver(databaseName);
         databaseSaver.saveScannedFiles(scannedFiles);
         //databaseSaver.updateHashForDuplicates();
 
-        long timeSpent = endTime - startTime; // Calculate the time spent
-        System.out.println("Time spent: " + timeSpent + " milliseconds"); // Print the time spent
+        long timeSpent = stopwatch.elapsed(TimeUnit.SECONDS);
+        logger.log(Level.INFO, "Time spent: " + timeSpent + " milliseconds");
 
-        printExtensionsTable(databaseSaver.fetchInfo());
-    }
+        PrintUtils.printExtensionsTable(databaseSaver.fetchInfo());
 
-    public static void printExtensionsTable(List<ExtensionInfo> extensionInfoList) {
-        String headerFormat = "| %-15s | %-10s | %-15s |%n";
-        String rowFormat = "| %-15s | %-10d | %-15d |%n";
-
-        System.out.printf(headerFormat, "Extension", "Count", "Size (MB)");
-        System.out.println("|-----------------|------------|-----------------|");
-
-        for (ExtensionInfo info : extensionInfoList) {
-            long totalSizeMB = info.getTotalSize() / 1024 / 1024; // converting size to MB
-            System.out.printf(rowFormat, info.getExtension(), info.getCount(), totalSizeMB);
-        }
+        return 0;
     }
 }
