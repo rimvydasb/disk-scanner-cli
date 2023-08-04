@@ -13,6 +13,8 @@ import org.rbutils.diskscanner.model.ScannedFile;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,13 +43,16 @@ public class IndexStorage {
         Map<String, Object> settings = new HashMap<>(SETTINGS);
 
         String databaseFilePath = System.getProperty("user.dir") + "/.index/";
+        File databaseFile = new File(databaseFilePath + databaseFileName);
 
         initDatabaseStorage(databaseFilePath);
 
         settings.put(Environment.URL, "jdbc:hsqldb:file:" + databaseFilePath + databaseFileName + ";shutdown=true");
 
-        if (!resetDatabase) {
+        if (databaseFile.exists() && !resetDatabase) {
             settings.put(Environment.HBM2DDL_AUTO, "update");
+        } else if (resetDatabase) {
+            settings.put(Environment.HBM2DDL_AUTO, "create-drop");
         }
 
         StandardServiceRegistry registry = new StandardServiceRegistryBuilder().applySettings(settings).build();
@@ -99,7 +104,7 @@ public class IndexStorage {
                 if (files.size() > 1) {
                     files.forEach(file -> {
                         try {
-                            String hash = FileUtils.compute10MbFileHash(file.getFilePath(), file.getBaseName());
+                            String hash = FileUtils.compute10MbFileHash(file.getFilePath());
                             file.setHash10Mb(hash);
                             session.merge(file);
                             logger.debug("Updated hash for " + file.getFilePath());

@@ -8,14 +8,12 @@ import java.io.IOException;
 import java.nio.file.Paths;
 
 public class FileUtils {
-    public static String compute10MbFileHash(String path, String filename) throws IOException {
-
-        String fullPath = Paths.get(path, filename).toString();
+    public static String compute10MbFileHash(String filepath) throws IOException {
 
         final int bufferSize = 10 * 1024 * 1024;
         byte[] buffer = new byte[bufferSize];
 
-        try (FileInputStream fis = new FileInputStream(fullPath)) {
+        try (FileInputStream fis = new FileInputStream(filepath)) {
             int bytesRead = fis.read(buffer);
             if (bytesRead > 0) {
                 HashFunction hashFunction = Hashing.murmur3_128();

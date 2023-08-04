@@ -1,13 +1,8 @@
 package org.rbutils.diskscanner.model;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import lombok.*;
 
 import jakarta.persistence.*;
-
-import java.io.FileInputStream;
-import java.io.IOException;
 
 @Entity
 @Getter
@@ -21,6 +16,7 @@ public class ScannedFile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String filePath;
+    private String folder;
     private String baseName;
     private String extension;
     private long size;

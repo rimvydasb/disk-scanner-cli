@@ -39,7 +39,7 @@ public class App implements Callable<Integer> {
 
         var databaseSaver = new IndexStorage(databaseName, resetDatabase);
 
-        if (resetDatabase) {
+        if (databaseSaver.getCount() == 0) {
 
             var treeWalker = new FileTreeWalker(scanPath);
 

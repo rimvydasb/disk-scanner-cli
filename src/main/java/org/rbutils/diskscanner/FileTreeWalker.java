@@ -50,6 +50,7 @@ public class FileTreeWalker {
 
         return ScannedFile.builder()
                 .filePath(file.toString())
+                .folder(file.getParent().toString())
                 .baseName(file.getFileName().toString().toLowerCase())
                 .extension(extension.toLowerCase())
                 .size(attrs.size())
