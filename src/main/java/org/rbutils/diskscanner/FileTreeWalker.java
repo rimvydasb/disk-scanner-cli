@@ -11,13 +11,13 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TreeWalker {
+public class FileTreeWalker {
 
     private final Path startPath;
 
     private static final List<String> IGNORE_LIST = List.of("cpi", "db", "bin", "bdm", "bnp", "inp", "int", "mpl", "xml");
 
-    public TreeWalker(Path startPath) {
+    public FileTreeWalker(Path startPath) {
         this.startPath = startPath;
     }
 

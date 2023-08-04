@@ -10,15 +10,16 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Command(name = "diskscanner", mixinStandardHelpOptions = true, version = "1.0", description = "Scans disk and provides information.")
 public class App implements Callable<Integer> {
     @CommandLine.Option(names = {"-scanPath"}, description = "The start path for scanning.")
     private Path scanPath;
 
-    private static final Logger logger = Logger.getLogger(App.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
         int exitCode = new CommandLine(new App()).execute(args);
@@ -29,21 +30,27 @@ public class App implements Callable<Integer> {
     public Integer call() throws IOException {
         String databaseName = scanPath.toString().replaceAll("[^a-zA-Z0-9]", "");
 
+        logger.info("Using database: " + databaseName);
+
         Stopwatch stopwatch = Stopwatch.createStarted();
 
-        var treeWalker = new TreeWalker(scanPath);
+        var treeWalker = new FileTreeWalker(scanPath);
 
         List<ScannedFile> scannedFiles = treeWalker.walkTree();
 
-        scannedFiles.forEach(file -> logger.log(Level.INFO, file.toString()));
+        scannedFiles.forEach(file -> logger.debug(file.toString()));
 
-        var databaseSaver = new DatabaseSaver(databaseName);
+        var databaseSaver = new IndexStorage(databaseName);
+
+        logger.info("Index count: " + databaseSaver.getCount());
+
         databaseSaver.saveScannedFiles(scannedFiles);
         //databaseSaver.updateHashForDuplicates();
 
         long timeSpent = stopwatch.elapsed(TimeUnit.SECONDS);
-        logger.log(Level.INFO, "Time spent: " + timeSpent + " milliseconds");
+        logger.info("Time spent: " + timeSpent + " milliseconds");
 
+        logger.info("Index count: " + databaseSaver.getCount());
         PrintUtils.printExtensionsTable(databaseSaver.fetchInfo());
 
         return 0;

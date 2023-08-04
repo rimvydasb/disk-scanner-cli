@@ -16,23 +16,28 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.stream.Collectors;
 
-public class DatabaseSaver {
+public class IndexStorage {
+
+    private static final Logger logger = LoggerFactory.getLogger(IndexStorage.class);
 
     private final SessionFactory sessionFactory;
 
-    private final Map<String, Object> SETTINGS = Map.of(
+    private static final Map<String, Object> SETTINGS = Map.of(
             Environment.DRIVER, "org.hsqldb.jdbc.JDBCDriver",
             Environment.USER, "SA",
             Environment.PASS, "",
             Environment.DIALECT, "org.hibernate.dialect.HSQLDialect",
-            Environment.SHOW_SQL, "true",
+            Environment.SHOW_SQL, "false",
             Environment.HBM2DDL_AUTO, "create-drop"
     );
 
-    public DatabaseSaver(String databaseFileName) {
-
+    public IndexStorage(String databaseFileName) {
         Map<String, Object> settings = new HashMap<>(SETTINGS);
 
         String databaseFilePath = System.getProperty("user.dir") + "/.index/";
@@ -49,13 +54,19 @@ public class DatabaseSaver {
         sessionFactory = metadataSources.buildMetadata().buildSessionFactory();
     }
 
+    public long getCount() {
+        try (Session session = sessionFactory.openSession()) {
+            return session.createQuery("select count(*) from ScannedFile", Long.class).uniqueResult();
+        }
+    }
+
     private static void initDatabaseStorage(String databaseFilePath) {
         Path path = Paths.get(databaseFilePath);
         if (!java.nio.file.Files.exists(path)) {
             try {
                 java.nio.file.Files.createDirectory(path);
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.error("Error creating directory: " + path, e);
             }
         }
     }
@@ -64,7 +75,7 @@ public class DatabaseSaver {
         try (Session session = sessionFactory.openSession()) {
             Transaction tx = session.beginTransaction();
             for (ScannedFile file : scannedFiles) {
-                session.save(file);
+                session.merge(file);
             }
             tx.commit();
         }
@@ -74,20 +85,20 @@ public class DatabaseSaver {
         try (Session session = sessionFactory.openSession()) {
             List<ScannedFile> scannedFiles = session.createQuery("from ScannedFile where md5 is null", ScannedFile.class).list();
 
-            Map<String, List<ScannedFile>> filesByBaseName = scannedFiles.stream()
-                    .collect(Collectors.groupingBy(ScannedFile::getBaseName));
+            Map<Long, List<ScannedFile>> filesByBaseName = scannedFiles.stream()
+                    .collect(Collectors.groupingBy(ScannedFile::getSize));
 
             Transaction tx = session.beginTransaction();
-            filesByBaseName.forEach((baseName, files) -> {
+            filesByBaseName.forEach((size, files) -> {
                 if (files.size() > 1) {
                     files.forEach(file -> {
                         try {
                             String hash = file.computeFileHash();
                             file.setMd5(hash);
-                            session.update(file);
-                            System.out.println("Updated hash for " + file.getFilePath());
+                            session.merge(file);
+                            logger.debug("Updated hash for " + file.getFilePath());
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            logger.error("Failed to update hash for " + file.getFilePath(), e);
                         }
                     });
                 }
