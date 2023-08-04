@@ -27,22 +27,6 @@ public class ScannedFile {
     private long lastModifiedTime;
     private long creationTime;
     private long lastAccessTime;
-    private String md5;
-    private String sha1;
-
-    public String computeFileHash() throws IOException {
-        final int bufferSize = 10 * 1024 * 1024;
-        byte[] buffer = new byte[bufferSize];
-
-        try (FileInputStream fis = new FileInputStream(this.getFilePath())) {
-            int bytesRead = fis.read(buffer);
-            if (bytesRead > 0) {
-                HashFunction hashFunction = Hashing.murmur3_128();
-                long hash = hashFunction.hashBytes(buffer, 0, bytesRead).asLong();
-                return Long.toString(hash);
-            } else {
-                throw new IOException("Failed to read the file");
-            }
-        }
-    }
+    private String hash10Mb;
+    private String fullHash;
 }

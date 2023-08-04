@@ -37,7 +37,7 @@ public class IndexStorage {
             Environment.HBM2DDL_AUTO, "create-drop"
     );
 
-    public IndexStorage(String databaseFileName) {
+    public IndexStorage(String databaseFileName, boolean resetDatabase) {
         Map<String, Object> settings = new HashMap<>(SETTINGS);
 
         String databaseFilePath = System.getProperty("user.dir") + "/.index/";
@@ -45,6 +45,10 @@ public class IndexStorage {
         initDatabaseStorage(databaseFilePath);
 
         settings.put(Environment.URL, "jdbc:hsqldb:file:" + databaseFilePath + databaseFileName + ";shutdown=true");
+
+        if (!resetDatabase) {
+            settings.put(Environment.HBM2DDL_AUTO, "update");
+        }
 
         StandardServiceRegistry registry = new StandardServiceRegistryBuilder().applySettings(settings).build();
 
@@ -83,18 +87,20 @@ public class IndexStorage {
 
     public void updateHashForDuplicates() {
         try (Session session = sessionFactory.openSession()) {
-            List<ScannedFile> scannedFiles = session.createQuery("from ScannedFile where md5 is null", ScannedFile.class).list();
+            List<ScannedFile> scannedFiles = session.createQuery("from ScannedFile where hash10Mb is null", ScannedFile.class).list();
 
             Map<Long, List<ScannedFile>> filesByBaseName = scannedFiles.stream()
                     .collect(Collectors.groupingBy(ScannedFile::getSize));
+
+            logger.info("Found " + scannedFiles.size() + " files without hash including " + filesByBaseName.size() + " with unique sizes");
 
             Transaction tx = session.beginTransaction();
             filesByBaseName.forEach((size, files) -> {
                 if (files.size() > 1) {
                     files.forEach(file -> {
                         try {
-                            String hash = file.computeFileHash();
-                            file.setMd5(hash);
+                            String hash = FileUtils.compute10MbFileHash(file.getFilePath(), file.getBaseName());
+                            file.setHash10Mb(hash);
                             session.merge(file);
                             logger.debug("Updated hash for " + file.getFilePath());
                         } catch (IOException e) {

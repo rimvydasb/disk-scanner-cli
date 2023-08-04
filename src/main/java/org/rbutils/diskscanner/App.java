@@ -21,6 +21,9 @@ public class App implements Callable<Integer> {
 
     private static final Logger logger = LoggerFactory.getLogger(App.class);
 
+    @CommandLine.Option(names = {"-resetIndex"}, description = "Reset collected indexes.")
+    private boolean resetDatabase = false;
+
     public static void main(String[] args) {
         int exitCode = new CommandLine(new App()).execute(args);
         System.exit(exitCode);
@@ -34,18 +37,21 @@ public class App implements Callable<Integer> {
 
         Stopwatch stopwatch = Stopwatch.createStarted();
 
-        var treeWalker = new FileTreeWalker(scanPath);
+        var databaseSaver = new IndexStorage(databaseName, resetDatabase);
 
-        List<ScannedFile> scannedFiles = treeWalker.walkTree();
+        if (resetDatabase) {
 
-        scannedFiles.forEach(file -> logger.debug(file.toString()));
+            var treeWalker = new FileTreeWalker(scanPath);
 
-        var databaseSaver = new IndexStorage(databaseName);
+            List<ScannedFile> scannedFiles = treeWalker.walkTree();
 
-        logger.info("Index count: " + databaseSaver.getCount());
+            scannedFiles.forEach(file -> logger.debug(file.toString()));
 
-        databaseSaver.saveScannedFiles(scannedFiles);
-        //databaseSaver.updateHashForDuplicates();
+            logger.info("Index count: " + databaseSaver.getCount());
+
+            databaseSaver.saveScannedFiles(scannedFiles);
+            databaseSaver.updateHashForDuplicates();
+        }
 
         long timeSpent = stopwatch.elapsed(TimeUnit.SECONDS);
         logger.info("Time spent: " + timeSpent + " milliseconds");
