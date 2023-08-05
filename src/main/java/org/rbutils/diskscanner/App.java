@@ -2,6 +2,7 @@ package org.rbutils.diskscanner;
 
 import com.google.common.base.Stopwatch;
 import org.rbutils.diskscanner.model.ScannedFile;
+import org.rbutils.diskscanner.store.IndexStorage;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
